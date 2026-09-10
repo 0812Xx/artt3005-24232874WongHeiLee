@@ -20,6 +20,22 @@
       align-items: center;
     }
 
+    /* Error Message Overlay Styling */
+    .error-message {
+      font-family: "Courier New", Courier, monospace;
+      color: #333333;
+      text-align: center;
+      line-height: 1.6;
+      font-size: 15px;
+      padding: 24px;
+      max-width: 500px;
+    }
+
+    .error-message a {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+
     /* Scene setup for 3D perspective */
     .card-container {
       width: 460px;
@@ -61,22 +77,106 @@
       align-items: center;
     }
 
-    /* Back Face */
-    .card-back {
-      transform: rotateY(180deg);
+    .card-front img, .image-placeholder {
+      width: 100%;
+      height: 280px;
+      border-radius: 8px;
+    }
+
+    .card-front img {
+      object-fit: cover;
     }
 
     .image-placeholder {
-      width: 100%;
-      height: 280px;
       background-color: #e2e8f0;
-      border-radius: 8px;
       display: flex;
       justify-content: center;
       align-items: center;
       color: #94a3b8;
       font-size: 14px;
       font-weight: 500;
+    }
+
+    /* Back Face - Archival Specimen Label */
+    .card-back {
+      transform: rotateY(180deg);
+      font-family: "Courier New", Courier, monospace;
+      color: #2b2b2b;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Border remains sharp */
+    .label-border {
+      border: 1px solid #333333;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Catalog number remains sharp */
+    .catalog-number {
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #333333;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      color: #111111;
+    }
+
+    .specimen-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-grow: 1;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    /* Labels remain sharp */
+    .field-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666666;
+      font-weight: bold;
+    }
+
+    /* Standard field values that decay */
+    .field-value {
+      font-size: 13px;
+      line-height: 1.35;
+      color: #111111;
+      opacity: 1;
+      filter: blur(0px);
+      letter-spacing: 0px;
+      transition: opacity 15s linear, filter 15s linear, letter-spacing 15s linear;
+    }
+
+    /* Triggered decay state for standard fields */
+    .card.decay .field-value {
+      opacity: 0;
+      filter: blur(12px);
+      letter-spacing: 8px;
+    }
+
+    /* "What was not captured" field value does NOT decay */
+    .field-value.no-decay {
+      transition: none !important;
+    }
+
+    .card.decay .field-value.no-decay {
+      opacity: 1 !important;
+      filter: blur(0px) !important;
+      letter-spacing: 0px !important;
     }
 
     .title {
@@ -118,24 +218,113 @@
   <div class="card-container">
     <div class="card" id="card">
       
+      <!-- Front Face -->
       <div class="card-face card-front">
-        <div class="image-placeholder">
-          Image Placeholder
-        </div>
-        <h2 class="title">Record Title</h2>
-        <p class="subtitle">Created on September 3, 2026 • File size 2.4 MB</p>
+        <div id="front-media-container" class="image-placeholder">Loading image...</div>
+        <h2 class="title" id="front-title">Loading...</h2>
+        <p class="subtitle" id="front-subtitle">Loading details...</p>
         <button class="btn-archive" onclick="flipCard()">Archive this</button>
       </div>
 
+      <!-- Back Face -->
       <div class="card-face card-back">
+        <div class="label-border">
+          <div class="catalog-number" id="back-catalog">
+            CAT. NO. —
+          </div>
+          
+          <div class="specimen-fields">
+            <div class="field-group">
+              <span class="field-label">Title</span>
+              <span class="field-value" id="back-title">—</span>
+            </div>
+            
+            <div class="field-group">
+              <span class="field-label">Date and place</span>
+              <span class="field-value" id="back-date-place">—</span>
+            </div>
+            
+            <div class="field-group">
+              <span class="field-label">Recorded by</span>
+              <span class="field-value" id="back-recorder">—</span>
+            </div>
+
+            <div class="field-group">
+              <span class="field-label">Certainty</span>
+              <span class="field-value" id="back-certainty">—</span>
+            </div>
+
+            <div class="field-group">
+              <span class="field-label">What was not captured</span>
+              <span class="field-value no-decay" id="back-not-captured">—</span>
+            </div>
+          </div>
         </div>
+      </div>
 
     </div>
   </div>
 
   <script>
+    // Load dynamically from record.json
+    fetch('record.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Front face elements
+        if (data.image) {
+          const container = document.getElementById('front-media-container');
+          
+          // Form target path checking for 'assets/' prefix
+          let src = data.image.trim();
+          if (!src.startsWith('assets/') && !src.startsWith('./assets/')) {
+            src = `assets/${src.replace(/^\/+/, '')}`;
+          }
+
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = data.title || 'Record Image';
+
+          // Clear container and inject image
+          container.innerHTML = '';
+          container.className = ''; 
+          container.appendChild(img);
+        }
+
+        document.getElementById('front-title').textContent = data.title || '';
+        document.getElementById('front-subtitle').textContent = data.place || '';
+
+        // Back face elements
+        document.getElementById('back-catalog').textContent = `CAT. NO. ${data.catalog_id || 'UNKNOWN'}`;
+        document.getElementById('back-title').textContent = data.title || '';
+        
+        const datePlaceStr = [data.date, data.place].filter(Boolean).join(' / ');
+        document.getElementById('back-date-place').textContent = datePlaceStr || '';
+        
+        document.getElementById('back-recorder').textContent = data.recorder || '';
+        document.getElementById('back-certainty').textContent = data.certainty || '';
+        document.getElementById('back-not-captured').textContent = data.not_captured || '';
+      })
+      .catch(error => {
+        console.error('Failed to load record.json:', error);
+        
+        // Replace page content with error message
+        document.body.innerHTML = `
+          <div class="error-message">
+            record.json did not load. Are you serving the folder?<br>
+            Open <a href="http://localhost:8000">http://localhost:8000</a>
+          </div>
+        `;
+      });
+
     function flipCard() {
-      document.getElementById('card').classList.add('flipped');
+      const card = document.getElementById('card');
+      card.classList.add('flipped');
+      card.classList.add('decay');
     }
   </script>
 
